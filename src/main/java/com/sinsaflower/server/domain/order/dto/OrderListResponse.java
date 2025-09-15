@@ -1,158 +1,114 @@
 package com.sinsaflower.server.domain.order.dto;
 
 import com.sinsaflower.server.domain.order.entity.Order;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
-import lombok.Getter;
+import com.sinsaflower.server.domain.order.constants.OrderConstants;
+import lombok.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
 
 @Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
-@Schema(description = "발주리스트 페이지 응답")
 public class OrderListResponse {
 
-    @Schema(description = "주문 목록")
-    private List<OrderSummary> orders;
+    private String orderNumber;      // 주문번호 (예: "877915")
+    private String orderType;        // 주문타입 (예: "직")
+    private String orderDate;        // 주문일 (예: "25-07-22")
+    private String orderTime;        // 주문시간 (예: "18:43")
+    private String deliveryDate;     // 배송일 (예: "25-07-31")
+    private String deliveryTime;     // 배송시간 (예: "기본시간")
+    private String sender;           // 발송자 (예: "")
+    private String receiver;         // 수령자 (예: "고인 OOO")
+    private String corpAddress;      // 업체주소 (예: "강원 속초시")
+    private String corpName;         // 업체명 (예: "다경플라워")
+    private String productName;      // 상품명 (예: "근조3단")
+    private String deliveryAddress;  // 배송주소 (예: "강릉시 사천면 방동길 38")
+    private BigDecimal originPrice;  // 원가 (예: 0)
+    private BigDecimal payment;      // 결제금액 (예: 200000)
+    private String sms;              // SMS 상태 (예: "성공")
+    private String fax;              // FAX 상태 (예: "거부")
+    private String deliveryStatus;   // 배송상태 (예: "배송완료")
+    private String consignee;        // 수탁자 (예: "김철수")
+    private Boolean isDelivery;      // 배송여부 (예: true)
+    private Boolean onSite;          // 현장여부 (예: false)
 
-    @Schema(description = "페이지 정보")
-    private PageInfo pageInfo;
-
-    @Schema(description = "검색 결과 통계")
-    private SearchStatistics statistics;
-
-    @Getter
-    @Builder
-    @Schema(description = "주문 요약 정보 (발주리스트용)")
-    public static class OrderSummary {
-        @Schema(description = "주문 ID", example = "1")
-        private Long id;
-
-        @Schema(description = "주문번호", example = "ORD-20250725-001")
-        private String orderNumber;
-
-        @Schema(description = "주문 생성일시", example = "2025-07-25T11:00:00")
-        private LocalDateTime createdAt;
-
-        @Schema(description = "배송 요구일", example = "2025-07-25")
-        private LocalDate deliveryDate;
-
-        @Schema(description = "배송 요일", example = "금요일")
-        private String deliveryDay;
-
-        @Schema(description = "주문자", example = "김화환")
-        private String ordererName;
-
-        @Schema(description = "수령인", example = "홍길동")
-        private String receiverName;
-
-        @Schema(description = "회원 정보")
-        private MemberSummary member;
-
-        @Schema(description = "상품 정보")
-        private ProductSummary product;
-
-        @Schema(description = "배송지 요약", example = "서울특별시 강남구 역삼동")
-        private String deliveryLocationSummary;
-
-        @Schema(description = "원천 금액", example = "50000")
-        private Integer basePrice;
-
-        @Schema(description = "총 결제 금액", example = "95000")
-        private Integer totalPrice;
-
-        @Schema(description = "주문 상태", example = "PENDING")
-        private Order.OrderStatus status;
-
-        @Schema(description = "주문 상태 설명", example = "주문접수")
-        private String statusDescription;
-
-        @Schema(description = "팩스번호", example = "02-123-4567")
-        private String faxNumber;
-
-        @Schema(description = "연락처", example = "010-1234-5678")
-        private String contactNumber;
-
-        @Schema(description = "경조사명", example = "개업축하")
-        private String occasion;
-
-        @Schema(description = "옵션 요약", example = "케이크, 와인")
-        private String optionsSummary;
+    // Entity -> DTO 변환
+    public static OrderListResponse from(Order order) {
+        return OrderListResponse.builder()
+                .orderNumber(order.getOrderNumber())
+                .orderType(order.getOrderType()) // 실제 필드 사용
+                .orderDate(formatDate(order.getCreatedAt().toLocalDate()))
+                .orderTime(formatTime(order.getCreatedAt()))
+                .deliveryDate(formatDate(order.getDeliveryDate()))
+                .deliveryTime(buildDeliveryTime(order)) // 배송 시간 조합
+                .sender(getFirstSenderName(order)) // 첫 번째 발송자명
+                .receiver(order.getReceiverName()) // 실제 필드 사용
+                .corpAddress(getCorpAddress(order)) // Member 비즈니스 프로필 주소
+                .corpName(order.getShopName())
+                .productName(order.getProductName())
+                .deliveryAddress(order.getDeliveryPlace()) // deliveryPlace를 deliveryAddress로 매핑
+                .originPrice(order.getOriginPrice() != null ? order.getOriginPrice() : BigDecimal.ZERO)
+                .payment(order.getPayment())
+                .sms(order.getSms()) // 실제 필드 사용
+                .fax(order.getFax()) // 실제 필드 사용
+                .deliveryStatus(mapOrderStatusToDeliveryStatus(order.getOrderStatus()))
+                .consignee(order.getConsignee()) // 실제 필드 사용
+                .isDelivery(order.getIsDelivery()) // 실제 필드 사용
+                .onSite(order.getOnSite()) // 실제 필드 사용
+                .build();
     }
 
-    @Getter
-    @Builder
-    @Schema(description = "회원 요약 정보")
-    public static class MemberSummary {
-        @Schema(description = "회원 ID", example = "1")
-        private Long id;
-
-        @Schema(description = "화환업체명", example = "신사꽃농장")
-        private String name;
-
-        @Schema(description = "닉네임", example = "신사꽃")
-        private String nickname;
-
-        @Schema(description = "휴대전화번호", example = "010-1234-5678")
-        private String mobile;
+    // 날짜 포맷팅 (yy-MM-dd)
+    private static String formatDate(java.time.LocalDate date) {
+        if (date == null) return "";
+        return date.format(DateTimeFormatter.ofPattern("yy-MM-dd"));
     }
 
-    @Getter
-    @Builder
-    @Schema(description = "상품 요약 정보")
-    public static class ProductSummary {
-        @Schema(description = "상품 ID", example = "1")
-        private Long id;
-
-        @Schema(description = "상품명", example = "개업축하화환")
-        private String productName;
-
-        @Schema(description = "상품 코드", example = "1001")
-        private Integer productCode;
+    // 시간 포맷팅 (HH:mm)
+    private static String formatTime(java.time.LocalDateTime dateTime) {
+        if (dateTime == null) return "";
+        return dateTime.format(DateTimeFormatter.ofPattern("HH:mm"));
     }
 
-    @Getter
-    @Builder
-    @Schema(description = "페이지 정보")
-    public static class PageInfo {
-        @Schema(description = "현재 페이지 번호", example = "0")
-        private Integer currentPage;
-
-        @Schema(description = "페이지 크기", example = "20")
-        private Integer pageSize;
-
-        @Schema(description = "전체 요소 수", example = "150")
-        private Long totalElements;
-
-        @Schema(description = "전체 페이지 수", example = "8")
-        private Integer totalPages;
-
-        @Schema(description = "첫 번째 페이지 여부", example = "true")
-        private Boolean isFirst;
-
-        @Schema(description = "마지막 페이지 여부", example = "false")
-        private Boolean isLast;
-
-        @Schema(description = "다음 페이지 존재 여부", example = "true")
-        private Boolean hasNext;
-
-        @Schema(description = "이전 페이지 존재 여부", example = "false")
-        private Boolean hasPrevious;
+    // 배송 시간 조합 (deliveryYear + deliveryHours + deliveryMinutes)
+    private static String buildDeliveryTime(Order order) {
+        if (order.getDeliveryHours() != null && order.getDeliveryMinutes() != null) {
+            return order.getDeliveryHours() + ":" + order.getDeliveryMinutes();
+        }
+        return OrderConstants.DeliveryTime.DEFAULT_TIME; // 기본값
     }
 
-    @Getter
-    @Builder  
-    @Schema(description = "검색 결과 통계")
-    public static class SearchStatistics {
-        @Schema(description = "전체 주문 건수", example = "150")
-        private Long totalOrders;
+    // 회사 주소 가져오기 (Member 비즈니스 프로필에서)
+    private static String getCorpAddress(Order order) {
+        if (order.getMember() != null && 
+            order.getMember().getBusinessProfile() != null && 
+            order.getMember().getBusinessProfile().getCompanyAddress() != null) {
+            return order.getMember().getBusinessProfile().getCompanyAddress();
+        }
+        return ""; // 비즈니스 프로필이 없거나 주소가 없으면 빈값
+    }
 
-        @Schema(description = "총 주문 금액", example = "14250000")
-        private Long totalAmount;
+    // 첫 번째 발송자명 가져오기
+    private static String getFirstSenderName(Order order) {
+        if (order.getOrderSenders() != null && !order.getOrderSenders().isEmpty()) {
+            return order.getOrderSenders().get(0).getName();
+        }
+        return ""; // 발송자가 없으면 빈값
+    }
 
-        // @Schema(description = "평균 주문 금액", example = "95000")
-        // private Integer averageAmount;
+    // OrderStatus를 배송상태로 매핑
+    private static String mapOrderStatusToDeliveryStatus(Order.OrderStatus orderStatus) {
+        if (orderStatus == null) return "";
+        
+        return switch (orderStatus) {
+            case PENDING -> "주문접수";
+            case CONFIRMED -> "주문확인";
+            case PREPARING -> "배송준비";
+            case DELIVERED -> "배송완료";
+            case CANCELLED -> "주문취소";
+        };
     }
 }

@@ -1,22 +1,44 @@
 package com.sinsaflower.server.domain.order.dto;
 
+import com.sinsaflower.server.domain.order.entity.Order;
+import com.sinsaflower.server.domain.order.entity.Order.OrderStatus;
+import lombok.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
-import lombok.Getter;
-
 @Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
-@Schema(description = "주문 생성 응답")
 public class OrderCreateResponse {
-    @Schema(description = "주문 ID", example = "1")
-    private Long id;
 
-    @Schema(description = "주문번호", example = "ORD-20250725-001")
-    private String orderNumber;
+    private Long id;                        // 주문 ID
+    private String orderNumber;             // 주문번호 (향후 추가 예정)
+    private OrderStatus orderStatus;        // 주문 상태
+    private String orderStatusDescription;  // 주문 상태 설명
+    private String productName;             // 상품명
+    private BigDecimal payment;             // 결제금액
+    private LocalDate deliveryDate;         // 배송일
+    private String shopName;                // 상점명
+    private Boolean hasProductImage;        // 이미지 업로드 여부
+    private LocalDateTime createdAt;        // 주문 생성 시간
 
-    @Schema(description = "주문 생성일시", example = "2025-07-20T10:30:00")
-    private LocalDateTime createdAt;
-
+    // Entity -> DTO 변환
+    public static OrderCreateResponse from(Order order) {
+        return OrderCreateResponse.builder()
+                .id(order.getId())
+                .orderNumber(order.getOrderNumber()) // 실제 주문번호 사용
+                .orderStatus(order.getOrderStatus())
+                .orderStatusDescription(order.getOrderStatus().getDescription())
+                .productName(order.getProductName())
+                .payment(order.getPayment())
+                .deliveryDate(order.getDeliveryDate())
+                .shopName(order.getShopName())
+                .hasProductImage(order.hasProductImage())
+                .createdAt(order.getCreatedAt())
+                .build();
+    }
 }

@@ -2,11 +2,14 @@ spring:
   application:
     name: sinsaflower-server
   
-  # 데이터베이스 설정 (실제 비밀번호는 application-private.yml에 설정)
+  config:
+    import: optional:file:./application-private.yml
+  
+  # 데이터베이스 설정 
   datasource:
     url: jdbc:postgresql://localhost:5432/sinsa-flower
     username: sinsaflower
-
+    # password는 application-private.yml에서 설정
     driver-class-name: org.postgresql.Driver
     
   # JPA/Hibernate 설정
@@ -80,7 +83,7 @@ management:
     health:
       show-details: always
 
-# JWT 설정
+# JWT 설정 (secret은 application-private.yml에서 설정)
 jwt:
   expiration: 900000      # 15분 (밀리초)
   refresh-expiration: 604800000  # 7일 (밀리초)

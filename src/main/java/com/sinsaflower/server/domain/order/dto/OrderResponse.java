@@ -1,172 +1,213 @@
 package com.sinsaflower.server.domain.order.dto;
 
 import com.sinsaflower.server.domain.order.entity.Order;
+import com.sinsaflower.server.domain.order.entity.Order.OrderStatus;
 import com.sinsaflower.server.domain.order.entity.OrderOption;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
-import lombok.Getter;
+import com.sinsaflower.server.domain.order.entity.OrderMessage;
+import com.sinsaflower.server.domain.order.entity.OrderSender;
+import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
-@Schema(description = "주문 상세 정보 응답")
 public class OrderResponse {
 
-    @Schema(description = "주문 ID", example = "1")
     private Long id;
-
-    @Schema(description = "주문번호", example = "ORD-20250725-001")
-    private String orderNumber;
-
-    @Schema(description = "주문 상태", example = "PENDING")
-    private Order.OrderStatus status;
-
-    @Schema(description = "주문 상태 설명", example = "주문접수")
-    private String statusDescription;
-
-    @Schema(description = "상품 정보")
-    private ProductInfo product;
-
-    @Schema(description = "회원 정보")
-    private MemberInfo member;
-
-    @Schema(description = "주문 수량", example = "1")
+    private String shopName;
+    private String phone;
+    private String productName;
+    private String productDetail;
     private Integer quantity;
+    private BigDecimal originPrice;
+    private BigDecimal price;
+    private BigDecimal payment;
 
-    @Schema(description = "기본 상품 금액", example = "50000")
-    private Integer basePrice;
+    // 주문자 정보
+    private String orderCustomerName;
+    private String orderCustomerPhone;
+    private String orderCustomerMobile;
 
-    @Schema(description = "옵션 상품 총 금액", example = "45000")
-    private Integer optionPrice;
-
-    @Schema(description = "총 주문 금액", example = "95000")
-    private Integer totalPrice;
-
-    @Schema(description = "주문자 이름", example = "김화환")
-    private String ordererName;
-
-    @Schema(description = "주문자 전화번호", example = "02-123-4567")
-    private String ordererNumber;
-
-    @Schema(description = "주문자 휴대전화번호", example = "010-1234-5678")
-    private String ordererMobile;
-
-    @Schema(description = "수령인 이름", example = "홍길동")
+    // 수령자 정보
     private String receiverName;
-
-    @Schema(description = "수령인 전화번호", example = "02-987-6543")
-    private String receiverNumber;
-
-    @Schema(description = "수령인 휴대전화번호", example = "010-9876-5432")
+    private String receiverPhone;
     private String receiverMobile;
 
-    @Schema(description = "배송 일자", example = "2025-07-25")
+    // 배송 정보
     private LocalDate deliveryDate;
+    private String deliveryHours;
+    private String deliveryMinutes;
+    private String deliveryType;
+    private String eventHours;
+    private String eventMinutes;
+    private String deliveryPlace;
 
-    @Schema(description = "배송 시간", example = "2025-07-25T14:00:00")
-    private LocalDateTime deliveryTime;
-
-    @Schema(description = "배송 요일", example = "금요일")
-    private String deliveryDay;
-
-    @Schema(description = "배송 주소")
-    private AddressInfo deliveryAddress;
-
-    @Schema(description = "경조사명", example = "개업축하")
-    private String occasion;
-
-    @Schema(description = "보내는 분 이름", example = "신사꽃농장")
-    private String fromName;
-
-    @Schema(description = "카드 메시지", example = "개업을 진심으로 축하드립니다.")
-    private String cardMessage;
-
-    @Schema(description = "요구사항", example = "1층 로비에 배치 부탁드립니다")
+    // 추가 정보
+    private String card;
     private String request;
+    private Boolean hideDeliveryPhoto;
 
-    @Schema(description = "추가 옵션 목록")
-    private List<OrderOptionInfo> orderOptions;
+    // 상태 정보
+    private OrderStatus orderStatus;
+    private String orderStatusDescription;
 
-    @Schema(description = "주문 생성일시", example = "2025-07-20T10:30:00")
+    // 이미지 정보
+    private String productImagePath;
+    private String productImageOriginalName;
+    private String productImageContentType;
+    private Long productImageSize;
+    private Boolean hasProductImage;
+
+    // 연관 정보
+    private Long memberId;
+    private String memberName;
+    private Long regionId;
+    private String regionName;
+    private Long productId;
+
+    // 연관 데이터
+    private List<OrderOptionResponse> options;
+    private List<OrderMessageResponse> messages;
+    private List<OrderSenderResponse> senders;
+
+    // 총 금액
+    private BigDecimal totalAmount;
+
+    // 시간 정보
     private LocalDateTime createdAt;
-
-    @Schema(description = "주문 수정일시", example = "2025-07-20T15:45:00")
     private LocalDateTime updatedAt;
 
+    // Entity -> DTO 변환
+    public static OrderResponse from(Order order) {
+        return OrderResponse.builder()
+                .id(order.getId())
+                .shopName(order.getShopName())
+                .phone(order.getPhone())
+                .productName(order.getProductName())
+                .productDetail(order.getProductDetail())
+                .quantity(order.getQuantity())
+                .originPrice(order.getOriginPrice())
+                .price(order.getPrice())
+                .payment(order.getPayment())
+                .orderCustomerName(order.getOrderCustomerName())
+                .orderCustomerPhone(order.getOrderCustomerPhone())
+                .orderCustomerMobile(order.getOrderCustomerMobile())
+                .receiverName(order.getReceiverName())
+                .receiverPhone(order.getReceiverPhone())
+                .receiverMobile(order.getReceiverMobile())
+                .deliveryDate(order.getDeliveryDate())
+                .deliveryHours(order.getDeliveryHours())
+                .deliveryMinutes(order.getDeliveryMinutes())
+                .deliveryType(order.getDeliveryType())
+                .eventHours(order.getEventHours())
+                .eventMinutes(order.getEventMinutes())
+                .deliveryPlace(order.getDeliveryPlace())
+                .card(order.getCard())
+                .request(order.getRequest())
+                .hideDeliveryPhoto(order.getHideDeliveryPhoto())
+                .orderStatus(order.getOrderStatus())
+                .orderStatusDescription(order.getOrderStatus().getDescription())
+                .productImagePath(order.getProductImagePath())
+                .productImageOriginalName(order.getProductImageOriginalName())
+                .productImageContentType(order.getProductImageContentType())
+                .productImageSize(order.getProductImageSize())
+                .hasProductImage(order.hasProductImage())
+                .memberId(order.getMember() != null ? order.getMember().getId() : null)
+                .memberName(order.getMember() != null ? order.getMember().getName() : null)
+                .regionId(order.getRegion() != null ? order.getRegion().getId() : null)
+                .regionName(order.getRegion() != null ? order.getRegion().getFullName() : null)
+                .productId(order.getProduct() != null ? order.getProduct().getId() : null)
+                .options(order.getOrderOptions().stream()
+                        .map(OrderOptionResponse::from)
+                        .collect(Collectors.toList()))
+                .messages(order.getOrderMessages().stream()
+                        .map(OrderMessageResponse::from)
+                        .collect(Collectors.toList()))
+                .senders(order.getOrderSenders().stream()
+                        .map(OrderSenderResponse::from)
+                        .collect(Collectors.toList()))
+                .totalAmount(order.getTotalAmount())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
+                .build();
+    }
+
+    // 내부 DTO 클래스들
     @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Builder
-    @Schema(description = "상품 정보")
-    public static class ProductInfo {
-        @Schema(description = "상품 ID", example = "1")
+    public static class OrderOptionResponse {
         private Long id;
+        private String optionName;
+        private Boolean checked;
+        private BigDecimal price;
+        private String description;
 
-        @Schema(description = "상품명", example = "개업축하화환")
-        private String productName;
-
-        @Schema(description = "상품 코드", example = "1001")
-        private Integer productCode;
+        public static OrderOptionResponse from(OrderOption option) {
+            return OrderOptionResponse.builder()
+                    .id(option.getId())
+                    .optionName(option.getOptionName())
+                    .checked(option.getChecked())
+                    .price(option.getPrice())
+                    .description(option.getDescription())
+                    .build();
+        }
     }
 
     @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Builder
-    @Schema(description = "회원 정보")
-    public static class MemberInfo {
-        @Schema(description = "회원 ID", example = "1")
+    public static class OrderMessageResponse {
         private Long id;
+        private String text;
+        private OrderMessage.MessageType messageType;
+        private String messageTypeDescription;
+        private Integer sortOrder;
 
-        @Schema(description = "로그인 ID", example = "partner123")
-        private String loginId;
+        public static OrderMessageResponse from(OrderMessage message) {
+            return OrderMessageResponse.builder()
+                    .id(message.getId())
+                    .text(message.getText())
+                    .messageType(message.getMessageType())
+                    .messageTypeDescription(message.getMessageType().getDescription())
+                    .sortOrder(message.getSortOrder())
+                    .build();
+        }
+    }
 
-        @Schema(description = "화환업체명", example = "신사꽃농장")
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class OrderSenderResponse {
+        private Long id;
         private String name;
+        private String relationship;
+        private String phone;
+        private Integer sortOrder;
+        private Boolean isMain;
 
-        @Schema(description = "닉네임", example = "신사꽃")
-        private String nickname;
-
-        @Schema(description = "휴대전화번호", example = "010-1234-5678")
-        private String mobile;
-    }
-
-    @Getter
-    @Builder
-    @Schema(description = "주소 정보")
-    public static class AddressInfo {
-        @Schema(description = "시/도", example = "서울특별시")
-        private String sido;
-
-        @Schema(description = "시/군/구", example = "강남구")
-        private String sigungu;
-
-        @Schema(description = "읍/면/동", example = "역삼동")
-        private String eupmyeondong;
-
-        @Schema(description = "상세 주소", example = "123-45번지 테헤란로 427")
-        private String detail;
-
-        @Schema(description = "우편번호", example = "06142")
-        private String zipcode;
-
-        @Schema(description = "전체 주소", example = "서울특별시 강남구 역삼동 123-45번지 테헤란로 427")
-        private String fullAddress;
-    }
-
-    @Getter
-    @Builder
-    @Schema(description = "주문 옵션 정보")
-    public static class OrderOptionInfo {
-        @Schema(description = "옵션 ID", example = "1")
-        private Long id;
-
-        @Schema(description = "옵션 종류", example = "CAKE")
-        private OrderOption.OptionproductType optionName;
-
-        @Schema(description = "옵션 종류 설명", example = "케이크")
-        private String optionDescription;
-
-        @Schema(description = "옵션 가격", example = "15000")
-        private Integer price;
+        public static OrderSenderResponse from(OrderSender sender) {
+            return OrderSenderResponse.builder()
+                    .id(sender.getId())
+                    .name(sender.getName())
+                    .relationship(sender.getRelationship())
+                    .phone(sender.getPhone())
+                    .sortOrder(sender.getSortOrder())
+                    .isMain(sender.getIsMain())
+                    .build();
+        }
     }
 }

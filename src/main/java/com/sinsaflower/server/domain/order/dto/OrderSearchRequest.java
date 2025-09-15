@@ -1,80 +1,125 @@
 package com.sinsaflower.server.domain.order.dto;
 
-import com.sinsaflower.server.domain.order.entity.Order;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Getter;
-import lombok.Setter;
+import com.sinsaflower.server.domain.order.entity.Order.OrderStatus;
+import lombok.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 
-@Getter @Setter
-@Schema(description = "발주리스트 검색 요청", example = """
-    {
-        "deliveryDateFrom": "2025-07-01",
-        "deliveryDateTo": "2025-07-31",
-        "status": "PENDING",
-        "ordererName": "김화환",
-        "receiverName": "홍길동",
-        "deliverySido": "서울특별시",
-        "deliverySigungu": "강남구",
-        "orderNumber": "ORD-20250725",
-        "memberId": 1,
-        "page": 0,
-        "size": 20,
-        "sort": "createdAt,desc"
-    }
-    """)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class OrderSearchRequest {
 
-    @Schema(description = "배송 시작일 (검색 범위)", example = "2025-07-01")
-    private LocalDate deliveryDateFrom;
+    // 날짜 검색 (이미지의 params 참고)
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    private LocalDate startDate;    // 시작일 (예: "2025-07-01")
 
-    @Schema(description = "배송 종료일 (검색 범위)", example = "2025-07-31")
-    private LocalDate deliveryDateTo;
+    @DateTimeFormat(pattern = "yyyy-MM-dd") 
+    private LocalDate endDate;      // 종료일 (예: "2025-08-15")
 
-    @Schema(description = "주문 상태", example = "PENDING",
-            allowableValues = {"UNCHECKED", "PENDING", "PREPARE", "DELIVERED"})
-    private Order.OrderStatus status;
+    // 날짜 필드 타입 (이미지의 dateField 참고)
+    @Builder.Default
+    private String dateField = "createdAt";  // "createdAt", "orderDate", "deliveryDate"
 
-    @Schema(description = "주문자명 (부분 검색)", example = "김화환")
-    private String ordererName;
+    // 주문 상태 필터
+    private OrderStatus orderStatus;  // 주문상태 필터
 
-    @Schema(description = "수령인명 (부분 검색)", example = "홍길동")
-    private String receiverName;
+    // 검색 조건 (이미지의 searchField, searchKeyword 참고)
+    private String searchField;      // 검색 필드 ("purchaseShopName" 등)
+    private String searchKeyword;    // 검색 키워드
 
-    @Schema(description = "배송지 시/도", example = "서울특별시")
-    private String deliverySido;
+    // 페이징 정보
+    @Builder.Default
+    private int page = 0;           // 페이지 번호 (0부터 시작)
+    
+    @Builder.Default
+    private int size = 20;          // 페이지 크기
 
-    @Schema(description = "배송지 시/군/구", example = "강남구")
-    private String deliverySigungu;
+    // 정렬 정보
+    @Builder.Default
+    private String sort = "createdAt"; // 정렬 필드
+    
+    @Builder.Default
+    private String direction = "desc"; // 정렬 방향 (asc, desc)
 
-    @Schema(description = "주문번호 (부분 검색)", example = "ORD-20250725")
-    private String orderNumber;
+    public enum SearchField {
+        PURCHASE_SHOP_NAME("purchaseShopName", "구매업체명"),  // 이미지에서 확인된 필드
+        SALES_SHOP_NAME("salesShopName", "판매업체명"),
+        PRODUCT_NAME("productName", "상품명"),
+        ORDER_NUMBER("orderNumber", "주문번호"),
+        CONSIGNEE("consignee", "수탁자"),
+        RECEIVER("receiver", "수령자"),
+        DELIVERY_ADDRESS("deliveryAddress", "배송주소"),
+        CORP_NAME("corpName", "업체명");
 
-    @Schema(description = "회원 ID (특정 회원의 주문만 조회)", example = "1")
-    private Long memberId;
-    // 페이지네이션
-    @Schema(description = "페이지 번호 (0부터 시작)", example = "0", defaultValue = "0")
-    private Integer page = 0;
+        private final String fieldName;
+        private final String description;
 
-    @Schema(description = "페이지 크기", example = "20", defaultValue = "20")
-    private Integer size = 20;
+        SearchField(String fieldName, String description) {
+            this.fieldName = fieldName;
+            this.description = description;
+        }
 
-    @Schema(description = "정렬 조건", example = "createdAt,desc", defaultValue = "createdAt,desc",
-            allowableValues = {
-                "createdAt,desc", "createdAt,asc",
-                "deliveryDate,desc", "deliveryDate,asc", 
-                "totalPrice,desc", "totalPrice,asc",
-                "orderNumber,desc", "orderNumber,asc"
-            })
-    private String sort = "createdAt,desc";
+        public String getFieldName() {
+            return fieldName;
+        }
 
-    // 편의 메서드
-    public boolean hasDeliveryDateRange() {
-        return deliveryDateFrom != null || deliveryDateTo != null;
+        public String getDescription() {
+            return description;
+        }
     }
 
-    public boolean hasLocationFilter() {
-        return deliverySido != null || deliverySigungu != null;
+    // 날짜 필드 enum
+    public enum DateFieldType {
+        CREATED_AT("createdAt", "주문등록일"),
+        ORDER_DATE("orderDate", "주문일"),
+        DELIVERY_DATE("deliveryDate", "배송일");
+
+        private final String fieldName;
+        private final String description;
+
+        DateFieldType(String fieldName, String description) {
+            this.fieldName = fieldName;
+            this.description = description;
+        }
+
+        public String getFieldName() {
+            return fieldName;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+    }
+
+    // 유효성 검증 메서드들
+    public boolean isValidDateRange() {
+        if (startDate == null || endDate == null) {
+            return true; // null인 경우는 검증하지 않음
+        }
+        return !startDate.isAfter(endDate);
+    }
+
+    public boolean hasSearchKeyword() {
+        return searchKeyword != null && !searchKeyword.trim().isEmpty();
+    }
+
+    public boolean hasDateRange() {
+        return startDate != null && endDate != null;
+    }
+
+    // 검색 필드가 유효한지 확인
+    public boolean isValidSearchField() {
+        if (searchField == null) return true;
+        
+        for (SearchField field : SearchField.values()) {
+            if (field.getFieldName().equals(searchField)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

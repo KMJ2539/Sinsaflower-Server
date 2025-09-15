@@ -3,6 +3,7 @@ package com.sinsaflower.server.global.security;
 import com.sinsaflower.server.global.jwt.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String JWT_COOKIE_NAME = "accessToken"; // 쿠키명 정의
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, 
@@ -72,13 +74,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     
     /**
-     * HTTP 요청에서 JWT 토큰 추출
+     * HTTP 요청에서 JWT 토큰 추출 (Header 또는 Cookie에서)
      */
     private String extractJwtFromRequest(HttpServletRequest request) {
+        // 1. Authorization Header에서 토큰 추출 시도
         String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
+            log.debug("JWT 토큰을 Authorization Header에서 추출");
             return bearerToken.substring(BEARER_PREFIX.length());
         }
+        
+        // 2. Cookie에서 토큰 추출 시도
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (JWT_COOKIE_NAME.equals(cookie.getName())) {
+                    String cookieValue = cookie.getValue();
+                    if (StringUtils.hasText(cookieValue)) {
+                        log.debug("JWT 토큰을 Cookie에서 추출");
+                        return cookieValue;
+                    }
+                }
+            }
+        }
+        
+        log.debug("JWT 토큰을 찾을 수 없음 (Header 및 Cookie 모두 확인)");
         return null;
     }
     

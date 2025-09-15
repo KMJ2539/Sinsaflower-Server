@@ -1,7 +1,6 @@
 package com.sinsaflower.server.global.controller;
 
-import com.sinsaflower.server.domain.member.dto.MemberResponse;
-import com.sinsaflower.server.domain.member.dto.MemberSignupRequest;
+import com.sinsaflower.server.global.constants.AuthConstants;
 import com.sinsaflower.server.global.dto.AuthResponse;
 import com.sinsaflower.server.global.dto.LoginRequest;
 import com.sinsaflower.server.global.dto.TokenRefreshRequest;
@@ -18,11 +17,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+
 import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -39,46 +38,7 @@ public class AuthController {
     
     private final AuthService authService;
     
-    /**
-     * 파트너 회원가입
-     */
-    @PostMapping(value = "/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(
-        summary = "파트너 회원가입", 
-        description = "새로운 파트너 회원을 등록합니다. multipart/form-data 형식으로 JSON 데이터와 파일을 함께 전송합니다."
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "회원가입 성공",
-                     content = @Content(schema = @Schema(implementation = MemberResponse.class))),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
-        @ApiResponse(responseCode = "409", description = "중복된 정보")
-    })
-    public ResponseEntity<com.sinsaflower.server.global.dto.ApiResponse<MemberResponse>> signup(
-        @RequestPart("request") 
-        @Schema(description = "회원가입 정보 (JSON)", implementation = MemberSignupRequest.class)
-        @Valid MemberSignupRequest request,
-        
-        @RequestPart(value = "businessCertFile", required = false)
-        @Schema(description = "사업자등록증 파일 (PDF, JPG, PNG)", type = "string", format = "binary")
-        MultipartFile businessCertFile,
-        
-        @RequestPart(value = "bankCertFile", required = false)
-        @Schema(description = "통장사본 파일 (PDF, JPG, PNG)", type = "string", format = "binary")
-        MultipartFile bankCertFile
-    ) {
-        log.info("파트너 회원가입 요청: {}", request.getLoginId());
 
-        if (request.getBusinessProfile() != null) {
-            request.getBusinessProfile().setBusinessCertFile(businessCertFile);
-            request.getBusinessProfile().setBankCertFile(bankCertFile);
-        }
-
-        MemberResponse response = authService.signUp(request);
-        log.info("회원가입 성공: {} (ID: {})", response.getLoginId(), response.getId());
-        
-        return ResponseEntity.status(HttpStatus.CREATED)
-            .body(com.sinsaflower.server.global.dto.ApiResponse.created("회원가입이 성공적으로 완료되었습니다.", response));
-    }
     /**
      * 통합 로그인
      */
@@ -95,13 +55,26 @@ public class AuthController {
     public ResponseEntity<com.sinsaflower.server.global.dto.ApiResponse<AuthResponse>> login(
         @RequestBody
         @Schema(description = "로그인 요청 정보", implementation = LoginRequest.class)
-        @Valid LoginRequest request) {
+        @Valid LoginRequest request,
+        HttpServletResponse httpResponse) {
         log.info("로그인 API 호출: {}", request.getLoginId());
         
         AuthResponse response = authService.login(request);
         log.info("로그인 성공: {} ({})", response.getUsername(), response.getUserType());
         
-        return ResponseEntity.ok(com.sinsaflower.server.global.dto.ApiResponse.success("로그인이 성공적으로 완료되었습니다.", response));
+        // JWT 토큰을 쿠키에 설정 (HttpOnly - 보안)
+        setTokenCookie(httpResponse, AuthConstants.Token.ACCESS_TOKEN_COOKIE, response.getAccessToken(), 
+                      AuthConstants.Token.ACCESS_TOKEN_EXPIRES_SECONDS, AuthConstants.Cookie.HTTP_ONLY_TOKEN);
+        if (response.getRefreshToken() != null) {
+            setTokenCookie(httpResponse, AuthConstants.Token.REFRESH_TOKEN_COOKIE, response.getRefreshToken(), 
+                          AuthConstants.Token.REFRESH_TOKEN_EXPIRES_SECONDS, AuthConstants.Cookie.HTTP_ONLY_TOKEN);
+        }
+        
+        setStatusCookie(httpResponse, AuthConstants.Cookie.IS_LOGGED_IN, "true", AuthConstants.Token.ACCESS_TOKEN_EXPIRES_SECONDS);
+        setStatusCookie(httpResponse, AuthConstants.Cookie.USER_TYPE, response.getUserType(), AuthConstants.Token.ACCESS_TOKEN_EXPIRES_SECONDS);
+        setStatusCookie(httpResponse, AuthConstants.Cookie.USERNAME, response.getUsername(), AuthConstants.Token.ACCESS_TOKEN_EXPIRES_SECONDS);
+        
+        return ResponseEntity.ok(com.sinsaflower.server.global.dto.ApiResponse.success(AuthConstants.Messages.LOGIN_SUCCESS, response));
     }
     
     /**
@@ -133,11 +106,23 @@ public class AuthController {
     @PostMapping("/logout")
     @Operation(summary = "로그아웃", description = "현재 세션 무효화")
     @ApiResponse(responseCode = "200", description = "로그아웃 성공")
-    public ResponseEntity<com.sinsaflower.server.global.dto.ApiResponse<Void>> logout(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<com.sinsaflower.server.global.dto.ApiResponse<Void>> logout(
+        @AuthenticationPrincipal CustomUserDetails userDetails,
+        HttpServletResponse httpResponse) {
         log.info("로그아웃 API 호출: {}", userDetails != null ? userDetails.getUsername() : "익명");
         
         authService.logout();
-        return ResponseEntity.ok(com.sinsaflower.server.global.dto.ApiResponse.success("로그아웃되었습니다."));
+        
+        // 쿠키에서 토큰 제거
+        clearTokenCookie(httpResponse, AuthConstants.Token.ACCESS_TOKEN_COOKIE);
+        clearTokenCookie(httpResponse, AuthConstants.Token.REFRESH_TOKEN_COOKIE);
+        
+        // 상태 쿠키도 제거
+        clearStatusCookie(httpResponse, AuthConstants.Cookie.IS_LOGGED_IN);
+        clearStatusCookie(httpResponse, AuthConstants.Cookie.USER_TYPE);
+        clearStatusCookie(httpResponse, AuthConstants.Cookie.USERNAME);
+        
+        return ResponseEntity.ok(com.sinsaflower.server.global.dto.ApiResponse.success(AuthConstants.Messages.LOGOUT_SUCCESS));
     }
     
     /**
@@ -154,7 +139,7 @@ public class AuthController {
         
         if (userDetails == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(com.sinsaflower.server.global.dto.ApiResponse.unauthorized("인증되지 않은 사용자입니다."));
+                .body(com.sinsaflower.server.global.dto.ApiResponse.unauthorized(AuthConstants.Messages.UNAUTHORIZED_USER));
         }
         
         Map<String, Object> userInfo = Map.of(
@@ -169,7 +154,7 @@ public class AuthController {
             "isPartner", userDetails.isPartner()
         );
         
-        return ResponseEntity.ok(com.sinsaflower.server.global.dto.ApiResponse.success("사용자 정보 조회가 성공적으로 완료되었습니다.", userInfo));
+        return ResponseEntity.ok(com.sinsaflower.server.global.dto.ApiResponse.success(AuthConstants.Messages.USER_INFO_SUCCESS, userInfo));
     }
     
     /**
@@ -186,7 +171,7 @@ public class AuthController {
         
         if (userDetails == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(com.sinsaflower.server.global.dto.ApiResponse.unauthorized("유효하지 않은 토큰입니다."));
+                .body(com.sinsaflower.server.global.dto.ApiResponse.unauthorized(AuthConstants.Messages.INVALID_TOKEN));
         }
         
         Map<String, Object> tokenInfo = Map.of(
@@ -198,6 +183,53 @@ public class AuthController {
                 .toList()
         );
         
-        return ResponseEntity.ok(com.sinsaflower.server.global.dto.ApiResponse.success("토큰이 유효합니다.", tokenInfo));
+        return ResponseEntity.ok(com.sinsaflower.server.global.dto.ApiResponse.success(AuthConstants.Messages.TOKEN_VALID, tokenInfo));
+    }
+    
+    /**
+     * 토큰을 쿠키에 설정하는 헬퍼 메서드 (HttpOnly 설정 가능)
+     */
+    private void setTokenCookie(HttpServletResponse response, String name, String value, int maxAgeInSeconds, boolean httpOnly) {
+        StringBuilder cookieHeader = new StringBuilder();
+        cookieHeader.append(String.format("%s=%s; Path=%s; Max-Age=%d; SameSite=%s", 
+                           name, value, AuthConstants.Cookie.COOKIE_PATH, maxAgeInSeconds, AuthConstants.Cookie.SAME_SITE));
+        
+        if (httpOnly) {
+            cookieHeader.append("; HttpOnly"); // 보안 토큰용
+        }
+        
+        // 프로덕션에서는 Secure 추가 (현재는 개발환경)
+        // cookieHeader.append("; Secure");
+        
+        response.addHeader("Set-Cookie", cookieHeader.toString());
+        
+        log.debug("토큰 쿠키 설정: {} (HttpOnly: {}, 만료: {}초)", name, httpOnly, maxAgeInSeconds);
+    }
+    
+    /**
+     * 상태 쿠키 설정 (프론트엔드 접근 가능)
+     */
+    private void setStatusCookie(HttpServletResponse response, String name, String value, int maxAgeInSeconds) {
+        setTokenCookie(response, name, value, maxAgeInSeconds, AuthConstants.Cookie.HTTP_ONLY_STATUS);
+    }
+    
+    /**
+     * 토큰 쿠키 제거 (HttpOnly)
+     */
+    private void clearTokenCookie(HttpServletResponse response, String name) {
+        String cookieHeader = String.format("%s=; Path=%s; Max-Age=0; HttpOnly; SameSite=%s", 
+                                           name, AuthConstants.Cookie.COOKIE_PATH, AuthConstants.Cookie.SAME_SITE);
+        response.addHeader("Set-Cookie", cookieHeader);
+        log.debug("토큰 쿠키 제거: {}", name);
+    }
+    
+    /**
+     * 상태 쿠키 제거 (일반)
+     */
+    private void clearStatusCookie(HttpServletResponse response, String name) {
+        String cookieHeader = String.format("%s=; Path=%s; Max-Age=0; SameSite=%s", 
+                                           name, AuthConstants.Cookie.COOKIE_PATH, AuthConstants.Cookie.SAME_SITE);
+        response.addHeader("Set-Cookie", cookieHeader);
+        log.debug("상태 쿠키 제거: {}", name);
     }
 } 

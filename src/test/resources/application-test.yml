@@ -2,11 +2,15 @@ spring:
   application:
     name: sinsaflower-server-test
   
+  # 테스트에서는 외부 설정 파일 import 제외
+  config:
+    import: ""
+  
   # 테스트용 H2 인메모리 데이터베이스 설정
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
-    password: 
+    password: ""
     driver-class-name: org.h2.Driver
     
   # JPA/Hibernate 테스트 설정
@@ -61,6 +65,12 @@ logging:
     org.springframework.test: DEBUG  # 테스트 프레임워크 디버깅
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# 테스트용 JWT 설정
+jwt:
+  secret: testSecretKeyForJwtTokenGenerationAndValidationInTestEnvironment
+  expiration: 900000      # 15분 (밀리초)
+  refresh-expiration: 604800000  # 7일 (밀리초)
 
 # 테스트 전용 관리자 설정
 management:
