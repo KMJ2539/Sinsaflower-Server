@@ -94,11 +94,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     long countByMember(@Param("member") Member member);
 
     // 오늘 주문 조회
-    @Query("SELECT o FROM Order o WHERE DATE(o.createdAt) = CURRENT_DATE AND o.isDeleted = false ORDER BY o.createdAt DESC")
+    @Query("SELECT o FROM Order o WHERE CAST(o.createdAt AS DATE) = CURRENT_DATE AND o.isDeleted = false ORDER BY o.createdAt DESC")
     List<Order> findTodayOrders();
 
     // 오늘 배송 예정 주문 조회
-    @Query("SELECT o FROM Order o WHERE o.deliveryDate = CURRENT_DATE AND o.isDeleted = false ORDER BY o.createdAt DESC")
+    @Query("SELECT o FROM Order o WHERE o.deliveryDate = CAST(CURRENT_DATE AS DATE) AND o.isDeleted = false ORDER BY o.createdAt DESC")
     List<Order> findTodayDeliveryOrders();
 
     // 주문번호 중복 확인

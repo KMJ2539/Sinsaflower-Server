@@ -95,21 +95,10 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
            "ORDER BY m.createdAt DESC")
     Page<Member> findByActivityRegionSidoAndSigungu(@Param("sido") String sido, @Param("sigungu") String sigungu, Pageable pageable);
     
-    @Query("SELECT DISTINCT m FROM Member m " +
-           "JOIN m.activityRegions ar " +
-           "WHERE ar.sido = :sido AND ar.sigungu = :sigungu AND ar.eupmyeondong = :eupmyeondong " +
-           "AND m.status = 'ACTIVE' AND m.isDeleted = false " +
-           "ORDER BY m.createdAt DESC")
-    Page<Member> findByActivityRegionSidoAndSigunguAndEupmyeondong(
-        @Param("sido") String sido, 
-        @Param("sigungu") String sigungu, 
-        @Param("eupmyeondong") String eupmyeondong, 
-        Pageable pageable);
-    
     // 취급 상품별 회원 검색
     @Query("SELECT DISTINCT m FROM Member m " +
            "JOIN m.handlingProducts hp " +
-           "WHERE hp.productName LIKE %:productName% AND m.status = 'ACTIVE' AND m.isDeleted = false " +
+           "WHERE CAST(hp.productType AS string) LIKE %:productName% AND m.status = 'ACTIVE' AND m.isDeleted = false " +
            "ORDER BY m.createdAt DESC")
     Page<Member> findByHandlingProductName(@Param("productName") String productName, Pageable pageable);
     
@@ -120,7 +109,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
            "WHERE (:name IS NULL OR m.name LIKE %:name%) " +
            "AND (:sido IS NULL OR ar.sido = :sido) " +
            "AND (:sigungu IS NULL OR ar.sigungu = :sigungu) " +
-           "AND (:productName IS NULL OR hp.productName LIKE %:productName%) " +
+           "AND (:productName IS NULL OR CAST(hp.productType AS string) LIKE %:productName%) " +
            "AND m.status = 'ACTIVE' AND m.isDeleted = false " +
            "ORDER BY m.createdAt DESC")
     Page<Member> findByCombinedSearch(
@@ -139,10 +128,10 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     List<Object[]> countMembersByRegion();
     
     // 취급 상품별 회원 수 통계  
-    @Query("SELECT hp.productName, COUNT(DISTINCT m) FROM Member m " +
+    @Query("SELECT hp.productType, COUNT(DISTINCT m) FROM Member m " +
            "JOIN m.handlingProducts hp " +
            "WHERE m.status = 'ACTIVE' AND m.isDeleted = false " +
-           "GROUP BY hp.productName " +
+           "GROUP BY hp.productType " +
            "ORDER BY COUNT(DISTINCT m) DESC")
     List<Object[]> countMembersByProduct();
     

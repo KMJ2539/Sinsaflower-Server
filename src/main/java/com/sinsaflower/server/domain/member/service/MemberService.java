@@ -325,12 +325,8 @@ public class MemberService {
      */
     public Page<MemberResponse> searchMembersByRegion(String sido, String sigungu, String eupmyeondong, Pageable pageable) {
         Page<Member> members;
-        
-        if (eupmyeondong != null && !eupmyeondong.trim().isEmpty()) {
-            // 시도 + 시군구 + 읍면동 검색
-            members = memberRepository.findByActivityRegionSidoAndSigunguAndEupmyeondong(sido, sigungu, eupmyeondong, pageable);
-        } else if (sigungu != null && !sigungu.trim().isEmpty()) {
-            // 시도 + 시군구 검색
+
+        if (sigungu != null && !sigungu.trim().isEmpty()) {
             members = memberRepository.findByActivityRegionSidoAndSigungu(sido, sigungu, pageable);
         } else {
             // 시도만 검색
@@ -382,7 +378,7 @@ public class MemberService {
         List<Object[]> results = memberRepository.countMembersByProduct();
         return results.stream()
                 .collect(Collectors.toMap(
-                    result -> (String) result[0],  // productName
+                    result -> result[0].toString(), 
                     result -> (Long) result[1]     // count
                 ));
     }
