@@ -76,4 +76,46 @@ public class MemberRegionPriceService {
             }
         }
     }
+
+    @Transactional(readOnly = true)
+    public List<MemberRegionPriceResponse> getMyRegionsAndPrices(Long memberId) {
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+
+        // 1️⃣ 활성 지역만 조회
+        List<MemberActivityRegion> regions = member.getActivityRegions().stream()
+                .filter(MemberActivityRegion::getIsActive)
+                .toList();
+
+        // 2️⃣ 가격 정보 미리 조회
+        List<MemberProductPrice> prices = member.getProductPrices();
+
+        // 3️⃣ 지역 기준으로 묶기
+        return regions.stream()
+                .map(region -> {
+
+                    List<MemberProductPriceResponse> priceResponses =
+                            prices.stream()
+                                    .filter(p ->
+                                            p.getSido().equals(region.getSido())
+                                                    && p.getSigungu().equals(region.getSigungu())
+                                    )
+                                    .map(p -> MemberProductPriceResponse.builder()
+                                            .categoryName(p.getCategoryName())
+                                            .price(p.getPrice().intValue())
+                                            .isAvailable(p.getIsAvailable())
+                                            .build()
+                                    )
+                                    .toList();
+
+                    return MemberRegionPriceResponse.builder()
+                            .sido(region.getSido())
+                            .sigungu(region.getSigungu())
+                            .handled(region.getIsActive())
+                            .prices(priceResponses)
+                            .build();
+                })
+                .toList();
+    }
 }
