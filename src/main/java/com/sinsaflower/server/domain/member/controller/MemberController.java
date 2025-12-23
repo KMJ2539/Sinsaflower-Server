@@ -3,7 +3,6 @@ package com.sinsaflower.server.domain.member.controller;
 import com.sinsaflower.server.domain.member.constants.MemberConstants;
 import com.sinsaflower.server.domain.member.dto.MemberResponse;
 import com.sinsaflower.server.domain.member.dto.MemberSignupRequest;
-import com.sinsaflower.server.domain.member.entity.Member.MemberStatus;
 import com.sinsaflower.server.domain.member.service.MemberService;
 import com.sinsaflower.server.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,9 +22,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.time.LocalDateTime;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/members")
