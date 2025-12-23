@@ -30,6 +30,9 @@ public class HandlingProduct extends BaseTimeEntity {
     @Column(name = "product_type", nullable = false)
     private ProductType productType;
 
+    @Column(name = "product_name", nullable = false)
+    private String productName;
+
     @Column(nullable = false)
     private Boolean isActive = true;
     public enum ProductType {

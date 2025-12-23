@@ -25,6 +25,8 @@ public class MemberActivityRegion {
     @Column(length = 50, nullable = false)
     private String sigungu; // 시/군/구
 
+    private String eupmyeondong;
+
     // @Column(nullable = true)
     // private Boolean isPrimary = false;
 
