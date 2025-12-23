@@ -39,6 +39,10 @@ public class Admin extends BaseTimeEntity {
 
     private LocalDateTime lastLoginAt; // 마지막 로그인 일시
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 20, nullable = false)
+    private AdminRole role;
+
     // 비즈니스 메서드
     public void encodePassword(PasswordEncoder passwordEncoder) {
         this.password = passwordEncoder.encode(this.password);
