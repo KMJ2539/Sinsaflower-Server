@@ -300,16 +300,7 @@ public class MemberService {
      * 응답 DTO 변환
      */
     private MemberResponse convertToResponse(Member member) {
-        return MemberResponse.builder()
-                .id(member.getId())
-                .loginId(member.getLoginId())
-                .name(member.getName())
-                .nickname(member.getNickname())
-                .mobile(member.getMobile())
-                .status(member.getStatus().getDescription())
-                .createdAt(member.getCreatedAt())
-                .lastLoginAt(member.getLastLoginAt())
-                .build();
+        return MemberResponse.from(member);
     }
 
     /**
@@ -405,6 +396,17 @@ public class MemberService {
      */
     public Page<MemberResponse> getAllActiveMembers(Pageable pageable) {
         Page<Member> members = memberRepository.findAllActive(pageable);
+        
+        // --- 디버깅 로그 추가 ---
+        members.getContent().forEach(member -> {
+            if (member.getBusinessProfile() == null) {
+                log.info("Member ID {}: BusinessProfile is NULL after fetch.", member.getId());
+            } else {
+                log.info("Member ID {}: BusinessProfile FOUND. CorpName: {}", member.getId(), member.getBusinessProfile().getCorpName());
+            }
+        });
+        // ----------------------
+
         return members.map(this::convertToResponse);
     }
 

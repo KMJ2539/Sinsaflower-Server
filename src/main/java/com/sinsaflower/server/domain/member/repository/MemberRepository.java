@@ -39,10 +39,11 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByLoginIdAndStatus(String loginId, MemberStatus status);
     
     // 삭제되지 않은 회원만 조회
-    @Query("SELECT m FROM Member m WHERE m.isDeleted = false ORDER BY m.createdAt DESC")
+    @Query("SELECT DISTINCT m FROM Member m LEFT JOIN FETCH m.businessProfile bp LEFT JOIN FETCH bp.bankAccounts WHERE m.isDeleted = false ORDER BY m.createdAt DESC")
     List<Member> findAllActive();
     
-    @Query("SELECT m FROM Member m WHERE m.isDeleted = false ORDER BY m.createdAt DESC")
+    @Query(value = "SELECT DISTINCT m FROM Member m LEFT JOIN FETCH m.businessProfile bp LEFT JOIN FETCH bp.bankAccounts WHERE m.isDeleted = false ORDER BY m.createdAt DESC",
+           countQuery = "SELECT count(m) FROM Member m WHERE m.isDeleted = false")
     Page<Member> findAllActive(Pageable pageable);
     
     // 활성 회원 중 로그인 ID로 조회
