@@ -1,5 +1,6 @@
 package com.sinsaflower.server.domain.order.repository;
 
+import com.sinsaflower.server.domain.order.dto.OrderPurchaseDto;
 import com.sinsaflower.server.domain.order.entity.Order;
 import com.sinsaflower.server.domain.order.entity.Order.OrderStatus;
 import com.sinsaflower.server.domain.member.entity.Member;
@@ -17,7 +18,7 @@ import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
-
+    Optional<Order> findByOrderNumber(String orderNumber);
     // 회원별 주문 조회
     List<Order> findByMemberAndIsDeletedFalseOrderByCreatedAtDesc(Member member);
     
@@ -66,15 +67,42 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByProductNameContaining(@Param("productName") String productName);
 
     // 복합 검색 조건
-    @Query("SELECT o FROM Order o WHERE " +
-           "(:memberIds IS NULL OR o.member.id IN :memberIds) AND " +
-           "(:orderStatus IS NULL OR o.orderStatus = :orderStatus) AND " +
-           "(:startDate IS NULL OR o.deliveryDate >= :startDate) AND " +
-           "(:endDate IS NULL OR o.deliveryDate <= :endDate) AND " +
-           "(:regionIds IS NULL OR o.region.id IN :regionIds) AND " +
-           "o.isDeleted = false " +
-           "ORDER BY o.createdAt DESC")
-    Page<Order> findOrdersWithConditions(
+    @Query("""
+SELECT new com.sinsaflower.server.domain.order.dto.OrderPurchaseDto(
+    o.orderNumber,
+    o.orderType,
+    o.createdAt,
+
+    o.deliveryDate,
+    o.deliveryHours,
+    o.deliveryMinutes,
+
+    o.receiverName,
+
+    o.shopName,
+
+    o.productName,
+    o.deliveryPlace,
+
+    o.originPrice,
+    o.payment,
+
+    o.orderStatus,
+
+    o.isDelivery,
+    o.onSite
+)
+FROM Order o
+WHERE
+(:memberIds IS NULL OR o.member.id IN :memberIds)
+AND (:orderStatus IS NULL OR o.orderStatus = :orderStatus)
+AND (:startDate IS NULL OR o.deliveryDate >= :startDate)
+AND (:endDate IS NULL OR o.deliveryDate <= :endDate)
+AND (:regionIds IS NULL OR o.region.id IN :regionIds)
+AND o.isDeleted = false
+ORDER BY o.createdAt DESC
+""")
+    Page<OrderPurchaseDto> findOrdersWithConditions(
             @Param("memberIds") List<Long> memberIds,
             @Param("orderStatus") OrderStatus orderStatus,
             @Param("startDate") LocalDate startDate,

@@ -1,5 +1,7 @@
 package com.sinsaflower.server.domain.order.service;
 
+import com.sinsaflower.server.domain.order.dto.OrderPurchaseDto;
+import com.sinsaflower.server.domain.order.dto.OrderResponse;
 import com.sinsaflower.server.domain.order.entity.Order;
 import com.sinsaflower.server.domain.order.entity.Order.OrderStatus;
 import com.sinsaflower.server.domain.order.entity.OrderOption;
@@ -113,6 +115,19 @@ public class OrderService {
     }
 
     /**
+     * 주문 조회 (오더 넘버)
+     */
+    @Transactional(readOnly = true)
+    public OrderResponse getOrder(String orderNumber) {
+        Order ord = orderRepository.findByOrderNumber(orderNumber)
+                .filter(order -> !order.getIsDeleted())
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderNumber));
+
+        return OrderResponse.from(ord);
+    }
+
+
+    /**
      * 회원별 주문 목록 조회
      */
     public Page<Order> getOrdersByMember(Long memberId, Pageable pageable) {
@@ -149,9 +164,9 @@ public class OrderService {
     /**
      * 복합 조건으로 주문 검색
      */
-    public Page<Order> searchOrders(List<Long> memberIds, OrderStatus orderStatus, 
-                                   LocalDate startDate, LocalDate endDate, 
-                                   List<Long> regionIds, Pageable pageable) {
+    public Page<OrderPurchaseDto> searchOrders(List<Long> memberIds, OrderStatus orderStatus,
+                                               LocalDate startDate, LocalDate endDate,
+                                               List<Long> regionIds, Pageable pageable) {
         return orderRepository.findOrdersWithConditions(
                 memberIds, orderStatus, startDate, endDate, regionIds, pageable);
     }

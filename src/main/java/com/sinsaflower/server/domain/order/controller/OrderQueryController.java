@@ -1,9 +1,6 @@
 package com.sinsaflower.server.domain.order.controller;
 
-import com.sinsaflower.server.domain.order.dto.OrderListResponse;
-import com.sinsaflower.server.domain.order.dto.OrderResponse;
-import com.sinsaflower.server.domain.order.dto.OrderSearchRequest;
-import com.sinsaflower.server.domain.order.dto.OrderSummaryResponse;
+import com.sinsaflower.server.domain.order.dto.*;
 import com.sinsaflower.server.domain.order.entity.Order;
 import com.sinsaflower.server.domain.order.entity.Order.OrderStatus;
 import com.sinsaflower.server.domain.order.service.OrderService;
@@ -43,16 +40,15 @@ public class OrderQueryController {
     /**
      * 개별 주문 조회
      */
-    @GetMapping("/{orderId}")
+    @GetMapping("/{orderNumber}")
     @Operation(summary = "주문 조회", description = "주문 ID로 특정 주문을 조회합니다.")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrder(
-            @PathVariable Long orderId,
+            @PathVariable String orderNumber,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        log.info("주문 조회 요청: {} by member: {}", orderId, userDetails.getUserId());
+        log.info("주문 조회 요청: {} by member: {}", orderNumber, userDetails.getUserId());
 
-        Order order = orderService.getOrder(orderId);
-        OrderResponse response = OrderResponse.from(order);
+        OrderResponse response = orderService.getOrder(orderNumber);
 
         return ResponseEntity.ok(ApiResponse.success("주문 조회가 성공적으로 완료되었습니다.", response));
     }
@@ -105,7 +101,7 @@ public class OrderQueryController {
      */
     @GetMapping("/purchase")
     @Operation(summary = "발주 리스트 조회", description = "다양한 조건으로 발주 리스트를 조회합니다.")
-    public ResponseEntity<ApiResponse<Page<OrderListResponse>>> getPurchaseOrders(
+    public ResponseEntity<ApiResponse<Page<OrderPurchaseDto >>> getPurchaseOrders(
             @Parameter(description = "검색 시작일 (yyyy-MM-dd)")
             @RequestParam(required = false) String startDate,
             
@@ -169,7 +165,7 @@ public class OrderQueryController {
         Pageable pageable = PagingUtils.createPageable(page, size, sort, direction);
 
         // 주문 목록 조회 (본인 주문만 조회)
-        Page<Order> orders = orderService.searchOrders(
+        Page<OrderPurchaseDto> orders = orderService.searchOrders(
                 List.of(userDetails.getUserId()), // 본인 memberId만 포함
                 orderStatus,
                 searchRequest.getStartDate(),
@@ -177,11 +173,17 @@ public class OrderQueryController {
                 null, // regionIds
                 pageable
         );
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "발주 리스트 조회가 성공적으로 완료되었습니다.",
+                        orders
+                )
+        );
 
-        // OrderListResponse로 변환
-        Page<OrderListResponse> response = orders.map(OrderListResponse::from);
-
-        return ResponseEntity.ok(ApiResponse.success("발주 리스트 조회가 성공적으로 완료되었습니다.", response));
+//        // OrderListResponse로 변환
+//        Page<OrderListResponse> response = orders.map(OrderListResponse::from);
+//
+//        return ResponseEntity.ok(ApiResponse.success("발주 리스트 조회가 성공적으로 완료되었습니다.", response));
     }
 
     /**

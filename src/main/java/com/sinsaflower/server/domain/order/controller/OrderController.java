@@ -1,5 +1,8 @@
 package com.sinsaflower.server.domain.order.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.sinsaflower.server.domain.order.dto.OrderCreateRequest;
 import com.sinsaflower.server.domain.order.dto.OrderCreateResponse;
 import com.sinsaflower.server.domain.order.dto.OrderResponse;
@@ -25,6 +28,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
@@ -38,65 +43,138 @@ public class OrderController {
 
     private final OrderService orderService;
     private final RegionRepository regionRepository;
-
+    @PostMapping("/debug")
+    public void debug(@RequestBody String raw) {
+        log.info("RAW BODY = {}", raw);
+    }
     /**
-     * 주문 생성 (JSON 데이터 + 이미지 파일)
+     * 주문 생성 (JSON 전용)
      */
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "주문 생성", description = "새로운 주문을 생성합니다. JSON 데이터와 이미지 파일을 함께 전송할 수 있습니다.")
+    @PostMapping(
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    @Operation(
+            summary = "주문 생성",
+            description = "JSON 기반으로 주문을 생성합니다. 이미지 업로드는 별도 API를 사용합니다."
+    )
     public ResponseEntity<ApiResponse<OrderCreateResponse>> createOrder(
-            @Parameter(description = "주문 데이터 (JSON)", required = true)
-            @RequestPart("orderData") @Valid OrderCreateRequest request,
+            @RequestBody @Valid OrderCreateRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    )  {
 
-            @Parameter(description = "상품 이미지 파일", required = false)
-            @RequestPart(value = "productImage", required = false) MultipartFile productImage,
+        log.info("Content-Type = {}",
+                ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+                        .getRequest()
+                        .getContentType()
+        );
+        log.info("req , {}", request.toString());
+        log.info("Creating order (JSON) for member: {}", userDetails.getUserId());
 
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-
-        log.info("Creating order for member: {}", userDetails.getUserId());
-
-        // DTO -> Entity 변환
+        // DTO → Entity
         Order orderData = request.toEntity();
 
-        // 지역 설정 (regionId가 있는 경우)
+        // Region 설정
         if (request.getRegionId() != null) {
             Region region = regionRepository.findById(request.getRegionId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Region not found: " + request.getRegionId()));
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException("Region not found: " + request.getRegionId())
+                    );
             orderData.setRegion(region);
         }
 
-        // 연관 엔티티들 설정
-        if (request.getOptions() != null && !request.getOptions().isEmpty()) {
-            request.getOptions().forEach(optionReq -> {
-                orderData.addOrderOption(optionReq.toEntity());
-            });
+        // 옵션
+        if (request.getOptions() != null) {
+            request.getOptions().forEach(o ->
+                    orderData.addOrderOption(o.toEntity())
+            );
         }
 
-        if (request.getMessages() != null && !request.getMessages().isEmpty()) {
-            request.getMessages().forEach(messageReq -> {
-                orderData.addOrderMessage(messageReq.toEntity());
-            });
+        // 메시지
+        if (request.getMessages() != null) {
+            request.getMessages().forEach(m ->
+                    orderData.addOrderMessage(m.toEntity())
+            );
         }
 
-        if (request.getSenders() != null && !request.getSenders().isEmpty()) {
-            request.getSenders().forEach(senderReq -> {
-                orderData.addOrderSender(senderReq.toEntity());
-            });
+        // 발신자
+        if (request.getSenders() != null) {
+            request.getSenders().forEach(s ->
+                    orderData.addOrderSender(s.toEntity())
+            );
         }
 
-        // 주문 생성 (이미지 포함)
-        Order savedOrder;
-        if (productImage != null && !productImage.isEmpty()) {
-            savedOrder = orderService.createOrderWithImage(userDetails.getUserId(), orderData, productImage);
-        } else {
-            savedOrder = orderService.createOrder(userDetails.getUserId(), orderData);
-        }
+        // 주문 저장
+        Order savedOrder = orderService.createOrder(
+                userDetails.getUserId(),
+                orderData
+        );
 
-        OrderCreateResponse response = OrderCreateResponse.from(savedOrder);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(OrderConstants.Messages.ORDER_CREATED, response));
+                .body(ApiResponse.success(
+                        OrderConstants.Messages.ORDER_CREATED,
+                        OrderCreateResponse.from(savedOrder)
+                ));
     }
+
+//    /**
+//     * 주문 생성 (JSON 데이터 + 이미지 파일)
+//     */
+//    @PostMapping(consumes = {
+//            MediaType.MULTIPART_FORM_DATA_VALUE,
+//            MediaType.APPLICATION_JSON_VALUE}
+//    )
+//    @Operation(summary = "주문 생성", description = "새로운 주문을 생성합니다. JSON 데이터와 이미지 파일을 함께 전송할 수 있습니다.")
+//    public ResponseEntity<ApiResponse<OrderCreateResponse>> createOrder(
+//            @Parameter(description = "주문 데이터 (JSON)", required = true)
+//            @RequestPart("orderData") @Valid OrderCreateRequest request,
+//            @Parameter(description = "상품 이미지 파일", required = false)
+//            @RequestPart(value = "productImage", required = false) MultipartFile productImage,
+//            @AuthenticationPrincipal CustomUserDetails userDetails) {
+//
+//        log.info("Creating order for member: {}", userDetails.getUserId());
+//
+//        // DTO -> Entity 변환
+//        Order orderData = request.toEntity();
+//
+//        // 지역 설정 (regionId가 있는 경우)
+//        if (request.getRegionId() != null) {
+//            Region region = regionRepository.findById(request.getRegionId())
+//                    .orElseThrow(() -> new ResourceNotFoundException("Region not found: " + request.getRegionId()));
+//            orderData.setRegion(region);
+//        }
+//
+//        // 연관 엔티티들 설정
+//        if (request.getOptions() != null && !request.getOptions().isEmpty()) {
+//            request.getOptions().forEach(optionReq -> {
+//                orderData.addOrderOption(optionReq.toEntity());
+//            });
+//        }
+//
+//        if (request.getMessages() != null && !request.getMessages().isEmpty()) {
+//            request.getMessages().forEach(messageReq -> {
+//                orderData.addOrderMessage(messageReq.toEntity());
+//            });
+//        }
+//
+//        if (request.getSenders() != null && !request.getSenders().isEmpty()) {
+//            request.getSenders().forEach(senderReq -> {
+//                orderData.addOrderSender(senderReq.toEntity());
+//            });
+//        }
+//
+//        // 주문 생성 (이미지 포함)
+//        Order savedOrder;
+//        if (productImage != null && !productImage.isEmpty()) {
+//            savedOrder = orderService.createOrderWithImage(userDetails.getUserId(), orderData, productImage);
+//        } else {
+//            savedOrder = orderService.createOrder(userDetails.getUserId(), orderData);
+//        }
+//
+//        OrderCreateResponse response = OrderCreateResponse.from(savedOrder);
+//        return ResponseEntity.status(HttpStatus.CREATED)
+//                .body(ApiResponse.success(OrderConstants.Messages.ORDER_CREATED, response));
+//    }
 
     /**
      * 주문 상태 변경

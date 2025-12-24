@@ -8,6 +8,8 @@ import com.sinsaflower.server.domain.order.constants.OrderConstants;
 import lombok.*;
 
 import jakarta.validation.constraints.*;
+import lombok.extern.jackson.Jacksonized;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +20,7 @@ import java.util.ArrayList;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString
 public class OrderCreateRequest {
 
     // 기본 주문 정보
